@@ -10,7 +10,7 @@
     "android": "pnpm --filter mobile android",
     "start": "pnpm --filter mobile start",
     "server": "pnpm --filter server start:dev",
-    "server:build": "pnpm --filter server prisma:generate && pnpm --filter server build",
+    "server:build": "pnpm --filter server build",
     "server:start": "pnpm --filter server start:prod",
     "ota:build": "pnpm --filter mobile ota:build",
     "ota:publish": "pnpm --filter mobile ota:publish",
