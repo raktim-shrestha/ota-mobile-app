@@ -1,0 +1,47 @@
+// Prisma schema for the Daily Quote OTA update backend.
+// Datasource: SQLite (local file), see server/.env for DATABASE_URL.
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "sqlite"
+    url      = env("DATABASE_URL")
+}
+
+/// A single OTA (over-the-air) JS bundle release for the Android app.
+model Release {
+    id String @id @default(cuid())
+
+    /// Semver-style OTA version, e.g. "1.2.0". Not the native app version.
+    otaVersion String
+
+    /// Native app version this release is compatible with (EXACT match required
+    /// by the client at check time), e.g. "1.0.0".
+    nativeVersion String
+
+    /// If true, the client must apply this update before continuing to use the app.
+    mandatory Boolean @default(false)
+
+    /// SHA-256 hash of the bundle file, computed server-side at upload time.
+    sha256 String
+
+    /// Size of the bundle file in bytes.
+    fileSizeBytes Int
+
+    /// Optional release notes / changelog shown to the client.
+    changelog String?
+
+    /// Path to the stored bundle file on the local filesystem, relative to
+    /// server/ota-releases/.
+    filePath String
+
+    /// Whether this release is visible to the public check/download endpoints.
+    published Boolean @default(true)
+
+    createdAt DateTime @default(now())
+
+    /// Same native+ota version combo can never be published twice.
+    @@unique([nativeVersion, otaVersion])
+}

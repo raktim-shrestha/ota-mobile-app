@@ -1,0 +1,19 @@
+{
+  "name": "daily-quote-ota",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Daily Quote - React Native Android app with a custom self-built OTA update system",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "android": "pnpm --filter mobile android",
+    "start": "pnpm --filter mobile start",
+    "server": "pnpm --filter server start:dev",
+    "server:build": "pnpm --filter server build",
+    "ota:build": "pnpm --filter mobile ota:build",
+    "ota:publish": "pnpm --filter mobile ota:publish",
+    "ota:check": "pnpm --filter mobile ota:check",
+    "test": "pnpm --filter mobile test && pnpm --filter server test"
+  }
+}

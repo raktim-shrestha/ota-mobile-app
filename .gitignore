@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+mobile/android/app/build/
+mobile/android/build/
+mobile/android/.gradle/
+mobile/android/local.properties
+mobile/ios/build/
+server/dist/
+
+# OTA bundle storage / releases
+server/ota-releases/
+mobile/android/app/src/main/assets/ota/
+
+# Env files (keep .example, ignore real ones)
+.env
+.env.local
+mobile/.env.development
+mobile/.env.production
+server/.env
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Editor / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.iml
+.idea/
+
+# Testing
+coverage/
+
+# Metro / RN
+.metro-health-check*
+mobile/android/app/src/main/res/drawable-*/rn_edit_text_material.xml
+
+# Prisma
+server/prisma/*.db
+server/prisma/*.db-journal
+
+# Keystores (never commit signing keys)
+*.keystore
+*.jks
+!debug.keystore

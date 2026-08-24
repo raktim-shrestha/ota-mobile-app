@@ -1,0 +1,8 @@
+packages:
+  - "mobile"
+  - "server"
+onlyBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "prisma"
+  - "unrs-resolver"
