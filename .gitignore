@@ -21,6 +21,9 @@ mobile/.env.development
 mobile/.env.production
 server/.env
 
+# Firebase config (contains project-specific API keys, keep out of git)
+mobile/android/app/google-services.json
+
 # Logs
 *.log
 npm-debug.log*

@@ -45,3 +45,38 @@ model Release {
     /// Same native+ota version combo can never be published twice.
     @@unique([nativeVersion, otaVersion])
 }
+
+/// An authenticated end-user, identified by their Firebase UID (used
+/// directly as the primary key — no separate internal id column).
+/// Auto-upserted on first authenticated request; kept in sync with the
+/// Firebase ID token's profile claims on every subsequent request.
+model User {
+    /// Firebase Auth UID.
+    id String @id
+
+    email       String?
+    displayName String?
+    photoURL    String?
+
+    favorites Favorite[]
+
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+/// A single favorited quote for a user. `quoteId` is a bare string matching
+/// an id from the static client-side quotes list (mobile/src/data/quotes.ts)
+/// — there is intentionally no server-side Quote table / FK relation.
+model Favorite {
+    id String @id @default(cuid())
+
+    userId String
+    user   User   @relation(fields: [userId], references: [id])
+
+    quoteId String
+
+    createdAt DateTime @default(now())
+
+    /// A user can only favorite a given quote once.
+    @@unique([userId, quoteId])
+}

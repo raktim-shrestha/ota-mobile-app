@@ -2,7 +2,9 @@ packages:
   - "mobile"
   - "server"
 onlyBuiltDependencies:
+  - "@firebase/util"
   - "@prisma/client"
   - "@prisma/engines"
   - "prisma"
+  - "protobufjs"
   - "unrs-resolver"

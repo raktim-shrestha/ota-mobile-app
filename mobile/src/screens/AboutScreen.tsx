@@ -1,6 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
+  Image,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -8,6 +10,7 @@ import {
 } from 'react-native';
 import UpdateAvailableCard from '../components/UpdateAvailableCard';
 import { APP_NATIVE_VERSION } from '../constants/appInfo';
+import { getCurrentUser, signOutOfGoogle } from '../services/firebaseAuth';
 import { useOtaStore } from '../store/useOtaStore';
 
 function AboutScreen() {
@@ -20,6 +23,7 @@ function AboutScreen() {
     checkForUpdate,
     clearError,
   } = useOtaStore();
+  const [signingOut, setSigningOut] = useState(false);
 
   useEffect(() => {
     void loadMetadata();
@@ -27,6 +31,20 @@ function AboutScreen() {
 
   const currentVersion = metadata?.currentVersion ?? 'built-in';
   const isChecking = status === 'checking';
+  const user = getCurrentUser();
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOutOfGoogle();
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Something went wrong signing out.';
+      Alert.alert('Sign-out failed', message);
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
     <ScrollView
@@ -37,6 +55,51 @@ function AboutScreen() {
       <Text className="mt-2 text-base text-slate-500">
         Daily Quote — custom self-built OTA update demo.
       </Text>
+
+      {/* Account */}
+      {user && (
+        <View className="mt-8 rounded-lg border border-slate-200 p-4">
+          <Text className="text-sm font-semibold text-slate-700">Account</Text>
+          <View className="mt-3 flex-row items-center gap-3">
+            {user.photoURL ? (
+              <Image
+                source={{ uri: user.photoURL }}
+                className="h-10 w-10 rounded-full bg-slate-100"
+              />
+            ) : (
+              <View className="h-10 w-10 items-center justify-center rounded-full bg-slate-200">
+                <Text className="text-sm font-semibold text-slate-600">
+                  {(user.displayName ?? user.email ?? '?').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+            )}
+            <View className="flex-1">
+              {user.displayName ? (
+                <Text className="text-sm font-medium text-slate-800">
+                  {user.displayName}
+                </Text>
+              ) : null}
+              {user.email ? (
+                <Text className="text-xs text-slate-500">{user.email}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          <TouchableOpacity
+            className="mt-4 items-center rounded-lg border border-slate-300 py-2.5"
+            onPress={() => void handleSignOut()}
+            disabled={signingOut}
+          >
+            {signingOut ? (
+              <ActivityIndicator size="small" color="#1e293b" />
+            ) : (
+              <Text className="text-sm font-semibold text-slate-700">
+                Sign Out
+              </Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Version info */}
       <View className="mt-8 rounded-lg border border-slate-200 p-4">

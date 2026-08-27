@@ -8,17 +8,24 @@ import { Release } from '@prisma/client';
 import { createReadStream } from 'node:fs';
 import { promises as fs } from 'node:fs';
 import { basename } from 'node:path';
+import { FirebaseAdminService } from '../firebase/firebase-admin.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CheckUpdateResponseDto } from './dto/check-update-response.dto';
 import { CreateReleaseDto } from './dto/create-release.dto';
 import { isGreaterSemver } from './semver.util';
 import { sha256OfBuffer, writeReleaseFile } from './ota-storage.util';
 
+/** Single FCM topic all Android clients subscribe to for OTA push alerts. */
+const OTA_UPDATES_TOPIC = 'ota-updates';
+
 @Injectable()
 export class OtaService {
   private readonly logger = new Logger(OtaService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly firebaseAdmin: FirebaseAdminService,
+  ) {}
 
   /**
    * Finds the best available published release for a client on a given
@@ -131,7 +138,7 @@ export class OtaService {
       `Publishing release ota=${dto.otaVersion} native=${dto.nativeVersion} sha256=${sha256} size=${file.buffer.length}`,
     );
 
-    return this.prisma.release.create({
+    const release = await this.prisma.release.create({
       data: {
         otaVersion: dto.otaVersion,
         nativeVersion: dto.nativeVersion,
@@ -143,5 +150,41 @@ export class OtaService {
         published: true,
       },
     });
+
+    if (release.mandatory) {
+      // Fire-and-forget: never let a push failure block the release response.
+      // Polling (checkForUpdate) remains the source of truth regardless.
+      this.sendMandatoryUpdatePush(release).catch((err: unknown) => {
+        this.logger.error(
+          `Failed to send FCM push for release ota=${release.otaVersion}: ${String(err)}`,
+        );
+      });
+    }
+
+    return release;
+  }
+
+  private async sendMandatoryUpdatePush(release: Release): Promise<void> {
+    const body =
+      release.changelog && release.changelog.trim().length > 0
+        ? release.changelog
+        : 'A required update is ready to install.';
+
+    await this.firebaseAdmin.messaging.send({
+      topic: OTA_UPDATES_TOPIC,
+      notification: {
+        title: `Update ${release.otaVersion} available`,
+        body,
+      },
+      android: {
+        notification: {
+          channelId: OTA_UPDATES_TOPIC,
+        },
+      },
+    });
+
+    this.logger.log(
+      `Sent FCM mandatory-update push for release ota=${release.otaVersion}`,
+    );
   }
 }
