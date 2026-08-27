@@ -55,15 +55,42 @@ pnpm run start:prod       # production (after pnpm run build)
 
 Key env vars in `server/.env`:
 
-| Variable            | Default         | Purpose                     |
-| ------------------- | --------------- | --------------------------- |
-| `DATABASE_URL`      | `file:./dev.db` | SQLite path (Prisma)        |
-| `OTA_ADMIN_API_KEY` | _(must set)_    | API key for admin endpoints |
-| `PORT`              | `3000`          | HTTP port                   |
+| Variable                      | Default         | Purpose                                          |
+| ------------------------------ | --------------- | ------------------------------------------------ |
+| `DATABASE_URL`                | `file:./dev.db` | SQLite path (Prisma)                             |
+| `OTA_ADMIN_API_KEY`           | _(must set)_    | API key for admin endpoints                      |
+| `PORT`                        | `3000`          | HTTP port                                        |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | _(must set)_  | Firebase Admin SDK credentials — see [§3](#3--firebase-setup-push-notifications--google-login--favorites-sync) |
 
 ---
 
-## 3 · Run the mobile app (development)
+## 3 · Firebase setup (push notifications + Google login + favorites sync)
+
+The app uses Firebase for: FCM push (mandatory-update alerts), Google Sign-In, and cloud sync of favorites.
+
+**Mobile (Android)**:
+
+1. In the [Firebase console](https://console.firebase.google.com/), add an Android app with package name `com.dailyquoteota.app`.
+2. Download the generated `google-services.json` and place it at:
+   ```
+   mobile/android/app/google-services.json
+   ```
+   This file is **gitignored** (contains project-specific API keys) — see `mobile/android/app/google-services.json.example` for the expected shape/fields. It is required for the app to build; without it, `pnpm run android` / Gradle sync will fail.
+
+**Server**:
+
+1. In Firebase console → Project settings → Service accounts → generate a new private key (downloads a JSON file).
+2. Minify it to a single line and set it as `FIREBASE_SERVICE_ACCOUNT_JSON` in `server/.env`:
+   ```bash
+   FIREBASE_SERVICE_ACCOUNT_JSON='{"type":"service_account","project_id":"...","private_key":"...", ...}'
+   ```
+   This is used by `FirebaseAdminService` to authenticate Google Sign-In tokens and send FCM push notifications. Never commit this file or value — `server/.env` is gitignored.
+
+Mobile clients subscribe to the `ota-updates` FCM topic after login; the server publishes to that topic whenever a release is created with `mandatory=true` (see `OtaService.sendMandatoryUpdatePush`).
+
+---
+
+## 4 · Run the mobile app (development)
 
 **Start Metro bundler** (separate terminal):
 
@@ -88,7 +115,7 @@ For a **physical device** change this to your machine's LAN IP, e.g. `http://192
 
 ---
 
-## 4 · Build a release APK
+## 5 · Build a release APK
 
 ```bash
 cd mobile/android
@@ -115,7 +142,7 @@ cd mobile/android
 
 ---
 
-## 5 · Build & publish an OTA bundle
+## 6 · Build & publish an OTA bundle
 
 An OTA update is a **JS bundle only** — no native recompile needed.
 
@@ -162,7 +189,7 @@ curl http://localhost:3000/ota/android/releases \
 
 ---
 
-## 6 · How the OTA system works
+## 7 · How the OTA system works
 
 ```
 App starts
@@ -185,7 +212,7 @@ User taps "Download & Install" / modal auto-triggers
 
 ---
 
-## 7 · Where to change what
+## 8 · Where to change what
 
 ### Change OTA server URL (mobile)
 
@@ -223,13 +250,16 @@ User taps "Download & Install" / modal auto-triggers
 
 ---
 
-## 8 · Project structure
+## 9 · Project structure
 
 ```
 mobile/
-├── App.tsx                        ← root component, OTA confirmUpdate on boot
+├── App.tsx                        ← root component, OTA confirmUpdate on boot, FCM topic subscribe
 ├── global.css                     ← NativeWind global styles
 ├── index.js                       ← RN entry point
+├── android/app/
+│   ├── google-services.json           ← Firebase config (gitignored, required to build)
+│   └── google-services.json.example   ← placeholder documenting the expected shape
 ├── src/
 │   ├── components/
 │   │   ├── MandatoryUpdateModal.tsx   ← blocking modal for mandatory updates
@@ -242,12 +272,17 @@ mobile/
 │   │   └── RootNavigator.tsx          ← bottom-tab navigator
 │   ├── screens/
 │   │   ├── AboutScreen.tsx            ← OTA status UI + check for updates
-│   │   └── HomeScreen.tsx             ← daily quote display
+│   │   ├── FavoritesScreen.tsx        ← cloud-synced favorite quotes
+│   │   ├── HomeScreen.tsx             ← daily quote display
+│   │   └── LoginScreen.tsx            ← Google Sign-In
 │   ├── services/
 │   │   ├── OTAVersionManager.ts       ← version comparison logic
-│   │   └── otaClient.ts               ← HTTP calls to OTA server
+│   │   ├── otaClient.ts               ← HTTP calls to OTA server
+│   │   ├── firebaseAuth.ts            ← Firebase Auth + Google Sign-In wrapper
+│   │   └── favoritesClient.ts         ← HTTP calls for favorites cloud sync
 │   └── store/
-│       └── useOtaStore.ts             ← Zustand OTA state machine
+│       ├── useOtaStore.ts             ← Zustand OTA state machine
+│       └── useFavoritesStore.ts       ← Zustand favorites state
 └── android/app/src/main/java/com/dailyquoteota/app/
     ├── MainApplication.kt             ← OTABootstrap wired here
     ├── OTABootstrap.kt                ← swaps JS bundle before RN loads
@@ -259,15 +294,20 @@ server/
 ├── src/ota/
 │   ├── ota.controller.ts              ← GET /ota/android/check (public)
 │   ├── ota-admin.controller.ts        ← POST /ota/android/releases (admin)
-│   ├── ota.service.ts                 ← release creation, check logic
+│   ├── ota.service.ts                 ← release creation, check logic, sends FCM push on mandatory
 │   ├── ota-storage.util.ts            ← ZIP extraction, file storage
 │   └── guards/admin-api-key.guard.ts  ← x-api-key header check
-└── prisma/schema.prisma               ← Release model (SQLite)
+├── src/firebase/
+│   ├── firebase-admin.service.ts      ← firebase-admin init (FIREBASE_SERVICE_ACCOUNT_JSON)
+│   ├── firebase-auth.guard.ts         ← verifies Firebase ID token on protected routes
+│   └── firebase.module.ts             ← NestJS module wiring
+├── src/favorites/                     ← cloud sync endpoints for favorite quotes (auth required)
+└── prisma/schema.prisma               ← Release + User + Favorite models (SQLite)
 ```
 
 ---
 
-## 9 · Run tests
+## 10 · Run tests
 
 ```bash
 # mobile unit tests
@@ -284,7 +324,7 @@ pnpm test
 
 ---
 
-## 10 · Tech stack
+## 11 · Tech stack
 
 | Layer                | Technology                                   |
 | -------------------- | -------------------------------------------- |
@@ -294,6 +334,9 @@ pnpm test
 | Navigation           | React Navigation 7 (bottom tabs)             |
 | HTTP / file download | react-native-blob-util                       |
 | Native config        | react-native-config                          |
+| Auth                 | Firebase Auth + Google Sign-In               |
+| Push notifications   | Firebase Cloud Messaging (FCM)               |
 | Backend              | NestJS                                       |
+| Backend Firebase SDK | firebase-admin                               |
 | Database             | SQLite via Prisma                            |
 | Package manager      | pnpm 11 (workspaces)                         |
