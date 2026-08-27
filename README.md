@@ -55,12 +55,12 @@ pnpm run start:prod       # production (after pnpm run build)
 
 Key env vars in `server/.env`:
 
-| Variable                      | Default         | Purpose                                          |
-| ------------------------------ | --------------- | ------------------------------------------------ |
-| `DATABASE_URL`                | `file:./dev.db` | SQLite path (Prisma)                             |
-| `OTA_ADMIN_API_KEY`           | _(must set)_    | API key for admin endpoints                      |
-| `PORT`                        | `3000`          | HTTP port                                        |
-| `FIREBASE_SERVICE_ACCOUNT_JSON` | _(must set)_  | Firebase Admin SDK credentials — see [§3](#3--firebase-setup-push-notifications--google-login--favorites-sync) |
+| Variable                        | Default         | Purpose                                                                                                        |
+| ------------------------------- | --------------- | -------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                  | `file:./dev.db` | SQLite path (Prisma)                                                                                           |
+| `OTA_ADMIN_API_KEY`             | _(must set)_    | API key for admin endpoints                                                                                    |
+| `PORT`                          | `3000`          | HTTP port                                                                                                      |
+| `FIREBASE_SERVICE_ACCOUNT_JSON` | _(must set)_    | Firebase Admin SDK credentials — see [§3](#3--firebase-setup-push-notifications--google-login--favorites-sync) |
 
 ---
 
